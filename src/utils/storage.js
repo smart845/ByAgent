@@ -1,6 +1,6 @@
 
 // src/utils/storage.js
-const FAV_KEY = 'byagent:favorites';
+const FAV_KEY = 'byagent:favorites'; 
 const ALERTS_KEY = 'byagent:alerts';
 
 export function loadFavorites() {
