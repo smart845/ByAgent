@@ -1,7 +1,4 @@
 import { CONFIG, AppState } from '../../config/constants.js';
-import { fmt } from '../utils/formatters.js';
-
-const $ = (id) => document.getElementById(id);
 
 // === API Helpers ===
 export const by = async (path, params = {}) => {
@@ -14,70 +11,66 @@ export const by = async (path, params = {}) => {
   return j.result;
 };
 
-// === Symbol Management ===
-let SYMBOLS = []; // [{symbol:'BTCUSDT', quote:'USDT', base:'BTC'}]
-
-export async function loadSymbols(){
-  try{
-    const res = await by(CONFIG.ENDPOINTS.INSTRUMENTS, {category:'linear'});
-    const list = res.list || [];
-    SYMBOLS = list
-      .filter(s => s.quoteCoin === 'USDT')
-      .map(s => ({symbol:s.symbol, base:s.baseCoin, quote:s.quoteCoin}));
-    // fill datalist
-    $('symList').innerHTML = SYMBOLS.slice(0,500).map(s => `<option value="${s.symbol}">${s.base}/${s.quote}</option>`).join('');
-  }catch(e){ console.error('symbols', e); }
-}
-
-export function normalizeSymbol(raw){
-  if(!raw) return null;
-  let t = raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if(!t) return null;
-  if(!/USDT$/.test(t)) {
-    const guess = t + 'USDT';
-    if (SYMBOLS.find(s=>s.symbol===guess)) return guess;
-  }
-  if (SYMBOLS.find(s=>s.symbol===t)) return t;
-  const c = SYMBOLS.find(s=>s.base===t || s.symbol.startsWith(t));
-  return c ? c.symbol : t;
-}
-
-export async function fetchKlines(sym, interval='15', limit=300){
-  const res = await by(CONFIG.ENDPOINTS.KLINE, {category:'linear', symbol:sym, interval, limit});
-  let rows = (res.list || []).map(r=>({
-    t: +r[0], o:+r[1], h:+r[2], l:+r[3], c:+r[4]
-  })).sort((a,b)=>a.t-b.t);
-  return rows;
-}
-
-// === TradingView chart ===
-function tvSymbol(sym){ return `BYBIT:${sym}.P`; }
-
-export function mountTV(sym){
-  const containerId = 'tvchart';
-  document.getElementById(containerId).innerHTML = ''; // reset
-  
-  new TradingView.widget({
-    symbol: tvSymbol(sym),
-    interval: '15',
-    autosize: true,
-    locale: 'ru',
-    theme: 'dark',
-    toolbar_bg: '#0b1020',
-    hide_side_toolbar: false,
-    withdateranges: true,
-    allow_symbol_change: false,
-    container_id: containerId,
-    studies: [
-      'RSI@tv-basicstudies',
-      'MACD@tv-basicstudies',
-      'MAExp@tv-basicstudies', // EMA 50
-      'MAExp@tv-basicstudies'  // EMA 200
-    ]
-  });
-}
-
-
 export async function byF(path, params = {}) {
   return by(path, { category: 'linear', ...params });
 }
+
+// === Symbols ===
+let _symbols = [];
+export async function loadSymbols() {
+  try {
+    const res = await byF('/v5/market/tickers');
+    _symbols = (res.list || []).map(x => x.symbol);
+  } catch {
+    _symbols = ['BTCUSDT','ETHUSDT'];
+  }
+  return _symbols;
+}
+export function normalizeSymbol(raw) {
+  if (!raw) return null;
+  let s = raw.toUpperCase().replace(/\s/g,'');
+  if (!s.endsWith('USDT')) s += 'USDT';
+  return s;
+}
+
+// === Klines ===
+export async function fetchKlines(symbol, interval='15', limit=200) {
+  // interval like '15' -> 15m per bybit expects '15'
+  const res = await byF('/v5/market/kline', { symbol, interval, limit });
+  const list = res.list || [];
+  // Return as arrays [open, high, low, close]
+  return list
+    .map(k => ({
+      ts: +k[0],
+      open: +k[1],
+      high: +k[2],
+      low: +k[3],
+      close: +k[4],
+      volume: +k[5]
+    }))
+    .sort((a,b)=> a.ts - b.ts);
+}
+
+// === TradingView mount (best-effort) ===
+export function mountTV(symbol, containerId='tv_chart_container') {
+  if (typeof TradingView === 'undefined') return;
+  const elId = containerId;
+  try {
+    new TradingView.widget({
+      autosize: true,
+      symbol: 'BYBIT:' + symbol.replace('USDT','USDT.P'),
+      interval: '15',
+      timezone: 'Etc/UTC',
+      theme: 'dark',
+      style: '1',
+      locale: 'ru',
+      toolbar_bg: '#000000',
+      enable_publishing: false,
+      allow_symbol_change: false,
+      container_id: elId,
+    });
+  } catch(e) {
+    console.warn('TV mount error', e);
+  }
+}
+
