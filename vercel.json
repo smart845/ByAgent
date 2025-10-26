@@ -1,12 +1,5 @@
 {
-  "builds": [ 
-    {
-      "src": "src/index.html",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    }
-  ],
-  "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
+  "installCommand": "pnpm install"
 }
