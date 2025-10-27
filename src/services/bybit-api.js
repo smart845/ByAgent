@@ -1,10 +1,12 @@
 // === Bybit API for Futures (Linear) ===
 
 import { CONFIG, AppState } from '../../config/constants.js';
+
 // === Load all tradable futures symbols ===
 export async function loadSymbols() {
   try {
-    const url = `${CONFIG.BYBIT_API}/v5/market/instruments-info?category=linear`;
+    // исправлено CONFIG.BYBIT_API → CONFIG.BYBIT.API_BASE
+    const url = `${CONFIG.BYBIT.API_BASE}/v5/market/instruments-info?category=linear`;
     const res = await fetch(url);
     const data = await res.json();
     if (data?.retCode !== 0) throw new Error(data?.retMsg || 'Bybit symbols fetch failed');
@@ -37,7 +39,8 @@ export function normalizeSymbol(input) {
 // === Load historical klines (candles) ===
 export async function fetchKlines(symbol, interval = '1') {
   try {
-    const url = `${CONFIG.BYBIT_API}/v5/market/kline?category=linear&symbol=${symbol}&interval=${interval}`;
+    // исправлено CONFIG.BYBIT_API → CONFIG.BYBIT.API_BASE
+    const url = `${CONFIG.BYBIT.API_BASE}/v5/market/kline?category=linear&symbol=${symbol}&interval=${interval}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data?.retCode !== 0) {
@@ -63,7 +66,8 @@ export async function fetchKlines(symbol, interval = '1') {
 // === Simple REST helper (fetch generic endpoint) ===
 export async function by(endpoint, params = '') {
   try {
-    const res = await fetch(`${CONFIG.BYBIT_API}${endpoint}${params}`);
+    // исправлено CONFIG.BYBIT_API → CONFIG.BYBIT.API_BASE
+    const res = await fetch(`${CONFIG.BYBIT.API_BASE}${endpoint}${params}`);
     return await res.json();
   } catch (e) {
     console.error('Bybit API error:', e);
