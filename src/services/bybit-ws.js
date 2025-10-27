@@ -1,66 +1,121 @@
+// === Bybit WebSocket for Futures (Linear) ===
+
 import { CONFIG, AppState } from '../../config/constants.js';
 
+let ws = null;
 let heartbeatTimer = null;
 let reconnectTimer = null;
 
-function send(ws, obj){
-  try { ws.send(JSON.stringify(obj)); } catch(e){}
+function sendSafe(message) {
+  try {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+  } catch (err) {
+    console.error('WS send error:', err);
+  }
 }
 
-export function connectPublicWS(){
-  if(AppState.ws && AppState.ws.readyState === 1) return AppState.ws;
-  const ws = new WebSocket(CONFIG.BYBIT.WS_PUBLIC);
+/**
+ * Подключение к публичному WebSocket Bybit Futures (linear)
+ */
+export function connectPublicWS() {
+  // Если уже есть активное подключение — не создаём заново
+  if (ws && ws.readyState === WebSocket.OPEN) return ws;
+
+  const WS_URL = CONFIG?.BYBIT?.WS_PUBLIC || 'wss://stream.bybit.com/v5/public/linear';
+  ws = new WebSocket(WS_URL);
   AppState.ws = ws;
 
+  console.log('🔌 Connecting to Bybit WS:', WS_URL);
+
   ws.onopen = () => {
-    const topics = ['tickers.*','fundingRate.*','openInterest.*'];
-    send(ws, { op: 'subscribe', args: topics });
-    heartbeatTimer = setInterval(()=> send(ws,{op:'ping'}), 15000);
+    console.log('✅ Bybit WS connected');
+    updateWSStatus(true);
+
+    // Подписываемся на все нужные топики
+    const topics = ['tickers.*', 'fundingRate.*', 'openInterest.*'];
+    sendSafe({ op: 'subscribe', args: topics });
+
+    // Пинг каждые 15 секунд
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(() => sendSafe({ op: 'ping' }), 15000);
   };
 
   ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data || '{}');
-    if(msg.op === 'pong') return;
-    if(msg.topic && msg.data){
-      const t = msg.topic;
-      if(t.startsWith('tickers.')){
-        const d = Array.isArray(msg.data) ? msg.data[0] : msg.data;
-        const sym = d.symbol;
+    try {
+      const msg = JSON.parse(ev.data || '{}');
+      if (msg.op === 'pong') return;
+
+      if (msg.topic && msg.data) {
+        const topic = msg.topic;
+        const data = Array.isArray(msg.data) ? msg.data[0] : msg.data;
+        const sym = data.symbol;
         const prev = AppState.realTime.get(sym) || {};
-        AppState.realTime.set(sym, {
-          ...prev,
-          price: +d.lastPrice || +d.price || +d.lastPrice24h || prev.price,
-          change24h: +d.price24hPcnt || prev.change24h,
-          turnover24h: +d.turnover24h || prev.turnover24h,
-          volume24h: +d.volume24h || prev.volume24h,
-          ts: Date.now()
-        });
-        document.dispatchEvent(new CustomEvent('rt:update', { detail: { symbol:sym, kind:'ticker' } }));
-      } else if(t.startsWith('fundingRate.')){
-        const d = Array.isArray(msg.data) ? msg.data[0] : msg.data;
-        const sym = d.symbol;
-        const prev = AppState.realTime.get(sym) || {};
-        AppState.realTime.set(sym, { ...prev, funding: +d.fundingRate });
-        document.dispatchEvent(new CustomEvent('rt:update', { detail: { symbol:sym, kind:'funding' } }));
-      } else if(t.startsWith('openInterest.')){
-        const d = Array.isArray(msg.data) ? msg.data[0] : msg.data;
-        const sym = d.symbol;
-        const prev = AppState.realTime.get(sym) || {};
-        AppState.realTime.set(sym, { ...prev, oi: +d.openInterest });
-        document.dispatchEvent(new CustomEvent('rt:update', { detail: { symbol:sym, kind:'oi' } }));
+
+        if (topic.startsWith('tickers.')) {
+          AppState.realTime.set(sym, {
+            ...prev,
+            price: +data.lastPrice || prev.price,
+            change24h: +data.price24hPcnt || prev.change24h,
+            turnover24h: +data.turnover24h || prev.turnover24h,
+            volume24h: +data.volume24h || prev.volume24h,
+            ts: Date.now(),
+          });
+          document.dispatchEvent(new CustomEvent('rt:update', { detail: { symbol: sym, kind: 'ticker' } }));
+        }
+
+        else if (topic.startsWith('fundingRate.')) {
+          AppState.realTime.set(sym, { ...prev, funding: +data.fundingRate });
+          document.dispatchEvent(new CustomEvent('rt:update', { detail: { symbol: sym, kind: 'funding' } }));
+        }
+
+        else if (topic.startsWith('openInterest.')) {
+          AppState.realTime.set(sym, { ...prev, oi: +data.openInterest });
+          document.dispatchEvent(new CustomEvent('rt:update', { detail: { symbol: sym, kind: 'oi' } }));
+        }
       }
+    } catch (err) {
+      console.error('WS parse error:', err);
     }
   };
 
   ws.onclose = () => {
-    clearInterval(heartbeatTimer);
-    clearTimeout(reconnectTimer);
-    reconnectTimer = setTimeout(connectPublicWS, CONFIG.UI.wsReconnectMs);
+    console.warn('⚠️ WS closed, will reconnect...');
+    updateWSStatus(false);
+    cleanup();
+    reconnectTimer = setTimeout(connectPublicWS, CONFIG?.UI?.wsReconnectMs || 5000);
   };
 
-  ws.onerror = () => {
-    try { ws.close(); } catch(e){}
+  ws.onerror = (err) => {
+    console.error('❌ WS error:', err);
+    try { ws.close(); } catch (_) {}
   };
 
   return ws;
+}
+
+/**
+ * Очистка при разрыве соединения
+ */
+function cleanup() {
+  clearInterval(heartbeatTimer);
+  clearTimeout(reconnectTimer);
+  heartbeatTimer = null;
+  reconnectTimer = null;
+}
+
+/**
+ * Отображает статус WS (online/offline) на UI
+ */
+function updateWSStatus(online) {
+  try {
+    const el = document.getElementById('wsStatus');
+    if (el) {
+      el.textContent = online ? 'online' : 'offline';
+      el.style.color = online ? '#7CFC00' : '#FF5555';
+    }
+  } catch (err) {
+    console.warn('WS status element not found');
+  }
 }
