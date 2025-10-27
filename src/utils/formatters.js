@@ -1,4 +1,4 @@
-// === Helpers ===
+// === Helpers === 
 export const fmt = (n, d=4) => (n===null||n===undefined? '—' : (+n).toLocaleString('ru-RU', {maximumFractionDigits:d}));
 export const nowStr = () => new Date().toLocaleTimeString('ru-RU');
 
