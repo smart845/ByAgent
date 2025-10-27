@@ -9,7 +9,7 @@ export const IS_LOCAL =
 export const CONFIG = {
   BYBIT: {
     // В DEV используем Vite proxy (/bybit), в PROD — прямой Bybit API
-    API_BASE: IS_LOCAL ? '/bybit' : 'https://api.bybit.com',
+   API_BASE: IS_LOCAL ? '/bybit' : '/api/bybit-proxy',
 
     // Только фьючерсы (linear)
     MARKET_CATEGORY: 'linear',
