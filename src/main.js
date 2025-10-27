@@ -1,1 +1,138 @@
-import { connectPublicWS } from './services/bybit-ws.js';\nimport { mountTV, normalizeSymbol } from './services/bybit-api.js';\nimport { spawnTopMovers } from './components/top-movers.js';\nimport { spawnSetups } from './components/setups.js';\nimport { spawnAnomalies } from './components/anomalies.js';\nimport { AppState } from '../config/constants.js';\nimport { loadFavorites, setAlert, loadAlerts } from './utils/storage.js';\nimport { CONFIG, AppState } from '../config/constants.js'; \nimport { by, loadSymbols, normalizeSymbol, mountTV } from './services/bybit-api.js';\nimport { spawnAgent, setActiveSeg } from './components/agent-analytics.js';\nimport { spawnOI, refreshOI } from './components/open-interest.js';\nimport { generateDrawerContent, setupAlertsModal } from './utils/helpers.js';\n\n// === DOM Elements ===\nconst $ = (id) => document.getElementById(id);\nconst symInput = $('sym'), symList = $('symList'), btnFind = $('btnFind');\nconst drawer = $('drawer');\nconst drawerTitle = $('drawerTitle');\nconst drawerBody = $('drawerBody');\nconst drawerClose = $('drawerClose');\n\n// === Initialization ===\nasync function init() {\n  await loadSymbols();\n  \n  // Set initial symbol and start modules\n  const initialSym = AppState.currentSymbol;\n  symInput.value = initialSym;\n  selectSymbol(initialSym);\n  \n  // Event Listeners\n  btnFind.addEventListener('click', handleFindClick);\n  symInput.addEventListener('keydown', handleSymInputKeydown);\n  \n  // Auto timing buttons for Agent\n  document.querySelectorAll('#autoSeg button').forEach(btn=>{\n    btn.addEventListener('click',()=>{\n      AppState.agentPeriodSec = +btn.dataset.sec;\n      setActiveSeg(document.getElementById('autoSeg'), btn);\n      spawnAgent();\n    });\n  });\n  \n  // OI interval buttons\n  document.querySelectorAll('#oiSeg button').forEach(btn=>{\n    btn.addEventListener('click',()=>{\n      AppState.oiInterval = btn.dataset.int;\n      setActiveSeg(document.getElementById('oiSeg'), btn);\n      refreshOI(); // refresh immediately on interval change\n    });\n  });\n  \n  // Drawer buttons (Wallet, Alerts, and neon-wrap buttons)\n  document.querySelectorAll('.neon-wrap .btn, .btn-group-top .btn').forEach(btn=>{\n    btn.addEventListener('click', ()=>{\n      const title = btn.textContent.trim();\n      drawerTitle.textContent = title;\n      drawerBody.innerHTML = generateDrawerContent(title);\n      drawer.classList.add('show');\n      \n      // Call setup function for the Alerts modal after content is injected\n      if (title === 'Алерты') {\n        // Wait for the next tick to ensure the new HTML is in the DOM\n        setTimeout(() => setupAlertsModal(drawer), 0);\n      }\n      \n      // Auto-scroll to the modal\n      setTimeout(() => {\n        document.getElementById('chartWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });\n      }, 100);\n    });\n  });\n  \n  drawerClose.addEventListener('click', ()=>drawer.classList.remove('show'));\n}\n\n// === Event Handlers ===\nfunction handleFindClick() {\n  const raw = symInput.value.trim();\n  const norm = normalizeSymbol(raw);\n  if(!norm){ alert('Введите тикер'); return; }\n  symInput.value = norm; // autosuffix USDT if needed\n  selectSymbol(norm);\n}\n\nfunction handleSymInputKeydown(e) {\n  if(e.key==='Enter'){ e.preventDefault(); btnFind.click(); }\n}\n\n// sync everything: agent + chart + OI\nexport function selectSymbol(sym){\n  window.selectSymbol = selectSymbol;\n  AppState.currentSymbol = sym;\n  $('agentSym').textContent = sym;\n  $('oiTitleSym').textContent = sym;\n  \n  // Refresh all modules now\n  spawnAgent();\n  spawnOI();\n  mountTV(sym);\n}\n\n// Start the application\ndocument.addEventListener('DOMContentLoaded', init);\n\ndocument.addEventListener('ui:selectSymbol', (e)=>{\n  const sym = e.detail.symbol;\n  if(!sym) return;\n  AppState.currentSymbol = sym;\n  const chartSym = document.getElementById('chartSym'); if(chartSym) chartSym.textContent = sym;\n  const agentSym = document.getElementById('agentSym'); if(agentSym) agentSym.textContent = sym;\n  const oiTitleSym = document.getElementById('oiTitleSym'); if(oiTitleSym) oiTitleSym.textContent = sym;\n  mountTV(sym);\n}, { passive:true });\n\ndocument.addEventListener('alerts:add', (e)=>{\n  const { symbol, price } = e.detail || {};\n  if(!symbol || !price) return;\n  setAlert(symbol, { price:+price, dir: 'cross' });\n  alert(`Алерт создан: ${symbol} @ ${price}`);\n}, { passive:true });\n\nconnectPublicWS();
+// === Imports ===
+import { connectPublicWS } from './services/bybit-ws.js';
+import { mountTV, normalizeSymbol, by, loadSymbols } from './services/bybit-api.js';
+import { spawnTopMovers } from './components/top-movers.js';
+import { spawnSetups } from './components/setups.js';
+import { spawnAnomalies } from './components/anomalies.js';
+import { AppState, CONFIG } from '../config/constants.js';
+import { loadFavorites, setAlert, loadAlerts } from './utils/storage.js';
+import { spawnAgent, setActiveSeg } from './components/agent-analytics.js';
+import { spawnOI, refreshOI } from './components/open-interest.js';
+import { generateDrawerContent, setupAlertsModal } from './utils/helpers.js';
+
+// === DOM Elements ===
+const $ = (id) => document.getElementById(id);
+const symInput = $('sym');
+const btnFind = $('btnFind');
+const drawer = $('drawer');
+const drawerTitle = $('drawerTitle');
+const drawerBody = $('drawerBody');
+const drawerClose = $('drawerClose');
+
+// === Initialization ===
+async function init() {
+  await loadSymbols();
+  connectPublicWS();
+
+  // Set initial symbol and start modules
+  const initialSym = AppState.currentSymbol;
+  symInput.value = initialSym;
+  selectSymbol(initialSym);
+
+  // Event Listeners
+  btnFind.addEventListener('click', handleFindClick);
+  symInput.addEventListener('keydown', handleSymInputKeydown);
+
+  // Auto timing buttons for Agent
+  document.querySelectorAll('#autoSeg button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      AppState.agentPeriodSec = +btn.dataset.sec;
+      setActiveSeg(document.getElementById('autoSeg'), btn);
+      spawnAgent();
+    });
+  });
+
+  // OI interval buttons
+  document.querySelectorAll('#oiSeg button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      AppState.oiInterval = btn.dataset.int;
+      setActiveSeg(document.getElementById('oiSeg'), btn);
+      refreshOI(); // refresh immediately on interval change
+    });
+  });
+
+  // Drawer buttons (Wallet, Alerts, Top/Setups/Anomalies)
+  document
+    .querySelectorAll('.neon-wrap .btn, .btn-group-top .btn')
+    .forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const title = btn.textContent.trim();
+        drawerTitle.textContent = title;
+        drawerBody.innerHTML = generateDrawerContent(title);
+        drawer.classList.add('show');
+
+        // Alerts modal setup
+        if (title === 'Алерты') {
+          setTimeout(() => setupAlertsModal(drawer), 0);
+        }
+
+        // Scroll to chart
+        setTimeout(() => {
+          const chart = document.getElementById('chartWrap');
+          if (chart) chart.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      });
+    });
+
+  drawerClose.addEventListener('click', () =>
+    drawer.classList.remove('show')
+  );
+}
+
+// === Event Handlers ===
+function handleFindClick() {
+  const raw = symInput.value.trim();
+  const norm = normalizeSymbol(raw);
+  if (!norm) {
+    alert('Введите тикер');
+    return;
+  }
+  symInput.value = norm;
+  selectSymbol(norm);
+}
+
+function handleSymInputKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    btnFind.click();
+  }
+}
+
+// === Sync everything: Agent + Chart + OI ===
+export function selectSymbol(sym) {
+  AppState.currentSymbol = sym;
+  const el = (id) => document.getElementById(id);
+  const ids = ['agentSym', 'oiTitleSym', 'chartSym'];
+  ids.forEach((id) => {
+    const node = el(id);
+    if (node) node.textContent = sym;
+  });
+
+  spawnAgent();
+  spawnOI();
+  mountTV(sym);
+}
+
+// === Global Event Listeners ===
+document.addEventListener('DOMContentLoaded', init);
+
+document.addEventListener(
+  'ui:selectSymbol',
+  (e) => {
+    const sym = e.detail.symbol;
+    if (!sym) return;
+    selectSymbol(sym);
+  },
+  { passive: true }
+);
+
+document.addEventListener(
+  'alerts:add',
+  (e) => {
+    const { symbol, price } = e.detail || {};
+    if (!symbol || !price) return;
+    setAlert(symbol, { price: +price, dir: 'cross' });
+    alert(`Алерт создан: ${symbol} @ ${price}`);
+  },
+  { passive: true }
+);
