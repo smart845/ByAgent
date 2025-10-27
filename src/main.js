@@ -48,44 +48,53 @@ async function init() {
     if (e.key === 'Enter') handleFindClick();
   });
 
-  // --- Agent timing buttons ---
-  document.querySelectorAll('#autoSeg button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      AppState.agentPeriodSec = Number(btn.dataset.sec);
-      setActiveSeg(document.getElementById('autoSeg'), btn);
-      spawnAgent();
-    });
+ // --- Agent timing buttons ---
+document.querySelectorAll('#autoSeg button').forEach(btn => {
+  btn.addEventListener('click', (e) => { // Добавляем (e)
+    e.preventDefault(); // Добавляем эту строку
+    e.stopPropagation(); // Добавляем эту строку
+    AppState.agentPeriodSec = Number(btn.dataset.sec);
+    setActiveSeg(document.getElementById('autoSeg'), btn);
+    spawnAgent();
   });
+});
+
 
   // --- Open Interest interval buttons ---
-  document.querySelectorAll('#oiSeg button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      AppState.oiInterval = btn.dataset.int;
-      setActiveSeg(document.getElementById('oiSeg'), btn);
-      refreshOI();
-    });
+document.querySelectorAll('#oiSeg button').forEach(btn => {
+  btn.addEventListener('click', (e) => { // Добавляем (e)
+    e.preventDefault(); // Добавляем эту строку
+    e.stopPropagation(); // Добавляем эту строку
+    AppState.oiInterval = btn.dataset.int;
+    setActiveSeg(document.getElementById('oiSeg'), btn);
+    refreshOI();
   });
+});
 
-  // --- Drawer / modal buttons (Favorites, Alerts, Setups, etc.) ---
-  document.querySelectorAll('.neon-wrap .btn, .btn-group-top .btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const title = btn.textContent.trim();
-      drawerTitle.textContent = title;
-      drawerBody.innerHTML = generateDrawerContent(title);
-      drawer.classList.add('show');
 
-      // Alerts modal setup
-      if (title === 'Алерты') {
-        setTimeout(() => setupAlertsModal(drawer), 0);
-      }
+// --- Drawer / modal buttons (Favorites, Alerts, Setups, etc.) ---
+document.querySelectorAll('.neon-wrap .btn, .btn-group-top .btn').forEach(btn => {
+  btn.addEventListener('click', (e) => { // Добавляем (e)
+    e.preventDefault(); // Добавляем эту строку
+    e.stopPropagation(); // Добавляем эту строку
+    const title = btn.textContent.trim();
+    drawerTitle.textContent = title;
+    drawerBody.innerHTML = generateDrawerContent(title);
+    drawer.classList.add('show');
 
-      // Smooth scroll to chart
-      setTimeout(() => {
-        const chartWrap = document.getElementById('chartWrap');
-        if (chartWrap) chartWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-    });
+    // Alerts modal setup
+    if (title === 'Алерты') {
+      setTimeout(() => setupAlertsModal(drawer), 0);
+    }
+
+    // Smooth scroll to chart
+    setTimeout(() => {
+      const chartWrap = document.getElementById('chartWrap');
+      if (chartWrap) chartWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   });
+});
+
 
   if (drawerClose)
     drawerClose.addEventListener('click', () => drawer.classList.remove('show'));
