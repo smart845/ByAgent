@@ -1,23 +1,28 @@
+// === Core Imports ===
 import { connectPublicWS } from './services/bybit-ws.js';
 import { mountTV, normalizeSymbol } from './services/bybit-api.js';
 import { spawnTopMovers } from './components/top-movers.js';
 import { spawnSetups } from './components/setups.js';
 import { spawnAnomalies } from './components/anomalies.js';
-import { AppState } from './config/constants.js';
+import { CONFIG, AppState } from './config/constants.js';
 import { loadFavorites, setAlert, loadAlerts } from './utils/storage.js';
-import { CONFIG } from './config/constants.js';
 import { spawnAgent, setActiveSeg } from './components/agent-analytics.js';
 import { spawnOI, refreshOI } from './components/open-interest.js';
 import { generateDrawerContent, setupAlertsModal } from './utils/helpers.js';
 
-// ========== DOM Shortcuts ==========
+// === DOM Shortcut ===
 const $ = (id) => document.getElementById(id);
 
-// ========== Initialization ==========
+// === Initialization ===
 async function init() {
-  console.log('[ByAgent] init start');
+  console.log('[ByAgent] Initialization started');
 
-  // Ensure all UI elements exist before binding
+  // Wait until DOM is fully ready
+  if (document.readyState !== 'complete' && document.readyState !== 'interactive') {
+    await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
+  }
+
+  // --- Elements ---
   const symInput = $('sym');
   const btnFind = $('btnFind');
   const drawer = $('drawer');
@@ -25,9 +30,8 @@ async function init() {
   const drawerBody = $('drawerBody');
   const drawerClose = $('drawerClose');
 
-  // Defensive check
   if (!symInput || !btnFind) {
-    console.warn('UI not ready — missing key elements');
+    console.error('[ByAgent] Critical: missing #sym or #btnFind in DOM');
     return;
   }
 
@@ -38,22 +42,22 @@ async function init() {
   symInput.value = initialSym;
   selectSymbol(initialSym);
 
-  // === Events ===
+  // --- Search input and button ---
   btnFind.addEventListener('click', handleFindClick);
   symInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleFindClick();
   });
 
-  // === Agent timing buttons ===
+  // --- Agent timing buttons ---
   document.querySelectorAll('#autoSeg button').forEach(btn => {
     btn.addEventListener('click', () => {
-      AppState.agentPeriodSec = +btn.dataset.sec;
+      AppState.agentPeriodSec = Number(btn.dataset.sec);
       setActiveSeg(document.getElementById('autoSeg'), btn);
       spawnAgent();
     });
   });
 
-  // === OI interval buttons ===
+  // --- Open Interest interval buttons ---
   document.querySelectorAll('#oiSeg button').forEach(btn => {
     btn.addEventListener('click', () => {
       AppState.oiInterval = btn.dataset.int;
@@ -62,7 +66,7 @@ async function init() {
     });
   });
 
-  // === Drawer buttons ===
+  // --- Drawer / modal buttons (Favorites, Alerts, Setups, etc.) ---
   document.querySelectorAll('.neon-wrap .btn, .btn-group-top .btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const title = btn.textContent.trim();
@@ -70,12 +74,15 @@ async function init() {
       drawerBody.innerHTML = generateDrawerContent(title);
       drawer.classList.add('show');
 
+      // Alerts modal setup
       if (title === 'Алерты') {
         setTimeout(() => setupAlertsModal(drawer), 0);
       }
+
+      // Smooth scroll to chart
       setTimeout(() => {
-        document.getElementById('chartWrap')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const chartWrap = document.getElementById('chartWrap');
+        if (chartWrap) chartWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
     });
   });
@@ -83,18 +90,22 @@ async function init() {
   if (drawerClose)
     drawerClose.addEventListener('click', () => drawer.classList.remove('show'));
 
-  // === Modules ===
-  spawnTopMovers();
-  spawnSetups();
-  spawnAnomalies();
-  spawnAgent();
-  spawnOI();
-  connectPublicWS();
+  // --- Initialize modules ---
+  try {
+    spawnTopMovers();
+    spawnSetups();
+    spawnAnomalies();
+    spawnAgent();
+    spawnOI();
+    connectPublicWS();
+  } catch (e) {
+    console.error('[ByAgent] Module init error:', e);
+  }
 
-  console.log('[ByAgent] UI initialized');
+  console.log('[ByAgent] UI fully initialized ✅');
 }
 
-// ========== Event Handlers ==========
+// === Event Handlers ===
 function handleFindClick() {
   const symInput = $('sym');
   if (!symInput) return;
@@ -105,22 +116,26 @@ function handleFindClick() {
     alert('Введите тикер');
     return;
   }
+
   symInput.value = norm;
   selectSymbol(norm);
 }
 
-// ========== Symbol Switch ==========
+// === Symbol Selection ===
 export function selectSymbol(sym) {
+  if (!sym) return;
   AppState.currentSymbol = sym;
-  $('agentSym').textContent = sym;
-  $('oiTitleSym').textContent = sym;
+
+  const agentSym = $('agentSym');
+  const oiTitleSym = $('oiTitleSym');
+  if (agentSym) agentSym.textContent = sym;
+  if (oiTitleSym) oiTitleSym.textContent = sym;
+
+  // Sync modules
   mountTV(sym);
   spawnAgent();
   spawnOI();
 }
 
-// ========== Init after DOM ready ==========
+// === Auto Init ===
 document.addEventListener('DOMContentLoaded', init);
-
-// ========== WebSocket connect ==========
-connectPublicWS();
