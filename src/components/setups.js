@@ -1,4 +1,4 @@
-import { AppState, CONFIG } from '../../config/constants.js';
+import { AppState, CONFIG } from '../../config/constants.js'; 
 import { isFavorite, toggleFavorite } from '../utils/storage.js';
 
 const tpl = (x)=>{
