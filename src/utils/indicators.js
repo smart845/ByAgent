@@ -1,4 +1,4 @@
-// === Agent analytics (price, RSI, EMA, MACD, ATR, simple signal) ===
+// === Agent analytics (price, RSI, EMA, MACD, ATR, simple signal) === 
 
 export const rsi = (closes, period=14) => {
   let gains=0, losses=0;
