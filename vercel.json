@@ -1,10 +1,11 @@
-{ 
-  "builds": [
-    { "src": "vite.config.js", "use": "@vercel/static-build" }
-  ],
-  "routes": [
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/src/(.*)", "dest": "/src/$1" },
-    { "src": "/(.*)", "dest": "/index.html" }
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/src/(.*)", "destination": "/src/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
