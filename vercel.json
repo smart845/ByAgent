@@ -1,8 +1,14 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "src/**/*", "use": "@vercel/static" }
+    {
+      "src": "vite.config.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "dist/**/*",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
     {
@@ -14,6 +20,9 @@
         "Access-Control-Allow-Headers": "Content-Type"
       }
     },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }
