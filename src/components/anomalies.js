@@ -1,5 +1,5 @@
 import { AppState, CONFIG } from '../../config/constants.js';
-import { isFavorite, toggleFavorite } from '../utils/storage.js';
+import { isFavorite, toggleFavorite } from '../utils/storage.js'; 
 
 function computeZ(vs){
   const n = vs.length; if(n<2) return 0;
