@@ -5,7 +5,6 @@ import { CONFIG, AppState } from '../../config/constants.js';
 // === Load all tradable futures symbols ===
 export async function loadSymbols() {
   try {
-    // исправлено CONFIG.BYBIT_API → CONFIG.BYBIT.API_BASE
     const url = `${CONFIG.BYBIT.API_BASE}/v5/market/instruments-info?category=linear`;
     const res = await fetch(url);
     const data = await res.json();
@@ -20,10 +19,10 @@ export async function loadSymbols() {
       volumePrecision: i.volumePrecision,
     }));
 
-    console.log(`Loaded ${AppState.symbols.length} Bybit Futures symbols`);
+    console.log(`✅ Loaded ${AppState.symbols.length} Bybit Futures symbols`);
     return AppState.symbols;
   } catch (err) {
-    console.error('Error loading Bybit futures symbols:', err);
+    console.error('❌ Error loading Bybit futures symbols:', err);
     return [];
   }
 }
@@ -37,18 +36,35 @@ export function normalizeSymbol(input) {
 }
 
 // === Load historical klines (candles) ===
+// Добавляем ограничение частоты запросов, чтобы не перегружать браузер/Vercel
+let lastKlineCall = 0;
+
 export async function fetchKlines(symbol, interval = '1') {
   try {
-    // исправлено CONFIG.BYBIT_API → CONFIG.BYBIT.API_BASE
+    // Ограничим частоту вызовов — не чаще, чем раз в 10 секунд
+    const now = Date.now();
+    if (now - lastKlineCall < 10000) {
+      console.warn('⏳ fetchKlines skipped (too frequent)');
+      return [];
+    }
+    lastKlineCall = now;
+
     const url = `${CONFIG.BYBIT.API_BASE}/v5/market/kline?category=linear&symbol=${symbol}&interval=${interval}`;
     const res = await fetch(url);
-    const data = await res.json();
-    if (data?.retCode !== 0) {
-      console.error('Bybit Klines error:', data);
+
+    // Проверим успешность запроса
+    if (!res.ok) {
+      console.error('❌ Network error in fetchKlines:', res.status);
       return [];
     }
 
-    // Map to normalized candle objects
+    const data = await res.json();
+    if (data?.retCode !== 0) {
+      console.error('❌ Bybit Klines API error:', data);
+      return [];
+    }
+
+    // Преобразуем данные свечей
     return data.result.list.map((i) => ({
       openTime: +i[0],
       open: +i[1],
@@ -58,7 +74,7 @@ export async function fetchKlines(symbol, interval = '1') {
       volume: +i[5],
     }));
   } catch (err) {
-    console.error('fetchKlines error', err);
+    console.error('❌ fetchKlines exception:', err);
     return [];
   }
 }
@@ -66,11 +82,11 @@ export async function fetchKlines(symbol, interval = '1') {
 // === Simple REST helper (fetch generic endpoint) ===
 export async function by(endpoint, params = '') {
   try {
-    // исправлено CONFIG.BYBIT_API → CONFIG.BYBIT.API_BASE
     const res = await fetch(`${CONFIG.BYBIT.API_BASE}${endpoint}${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error('Bybit API error:', e);
+    console.error('❌ Bybit API error (by function):', e);
     return null;
   }
 }
@@ -100,6 +116,6 @@ export function mountTV(symbol) {
     };
     container.appendChild(script);
   } catch (err) {
-    console.error('mountTV error', err);
+    console.error('❌ mountTV error:', err);
   }
 }
