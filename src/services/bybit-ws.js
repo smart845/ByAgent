@@ -31,7 +31,7 @@ export function connectPublicWS() {
 
   ws.onopen = () => {
     console.log('✅ Bybit WS connected');
-    updateWSStatus(true);
+    updateWSState(true);
 
     // Подписываемся на все нужные топики
     const topics = ['tickers.*', 'fundingRate.*', 'openInterest.*'];
@@ -82,7 +82,7 @@ export function connectPublicWS() {
 
   ws.onclose = () => {
     console.warn('⚠️ WS closed, will reconnect...');
-    updateWSStatus(false);
+    updateWSState(false);
     cleanup();
     reconnectTimer = setTimeout(connectPublicWS, CONFIG?.UI?.wsReconnectMs || 5000);
   };
@@ -108,9 +108,9 @@ function cleanup() {
 /**
  * Отображает статус WS (online/offline) на UI
  */
-function updateWSStatus(online) {
+function updateWSState(online) {
   try {
-    const el = document.getElementById('wsStatus');
+    const el = document.getElementById('wsState');
     if (el) {
       el.textContent = online ? 'online' : 'offline';
       el.style.color = online ? '#7CFC00' : '#FF5555';
