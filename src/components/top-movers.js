@@ -1,4 +1,4 @@
-import { AppState } from '../../config/constants.js';
+import { AppState } from '../../config/constants.js'; 
 import { toggleFavorite, isFavorite } from '../utils/storage.js';
 
 function rowHTML(item){
