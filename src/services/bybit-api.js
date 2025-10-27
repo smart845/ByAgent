@@ -1,4 +1,4 @@
-import { CONFIG, AppState } from '../../config/constants.js';
+import { CONFIG, AppState } from '../../config/constants.js'; 
 
 // === REST helpers: только linear (фьючерсы) ===
 export async function by(path, params = {}){
