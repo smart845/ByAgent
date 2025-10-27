@@ -8,7 +8,7 @@ export const IS_LOCAL =
 // === Configuration ===
 export const CONFIG = {
   BYBIT: {
-    // В DEV используем Vite proxy (/bybit), в PROD — прямой Bybit API.
+    // В DEV используем Vite proxy (/bybit), в PROD — прямой Bybit API
     API_BASE: IS_LOCAL ? '/bybit' : 'https://api.bybit.com',
 
     // Только фьючерсы (linear)
@@ -19,7 +19,7 @@ export const CONFIG = {
     WS_PRIVATE: 'wss://stream.bybit.com/v5/private'
   },
 
-  // Rest endpoints
+  // REST endpoints
   ENDPOINTS: {
     TICKERS: '/v5/market/tickers',
     KLINE: '/v5/market/kline',
@@ -30,29 +30,33 @@ export const CONFIG = {
     TRADES: '/v5/market/recent-trade'
   },
 
-  // UI / Behaviour
+  // UI behaviour
   UI: {
-    moversLimit: 200,
-    setupsMinNotional24h: 2e6,
-    anomaliesZScore: 3,
-    wsReconnectMs: 4500,
-    oiInterval: '5min',
-    agentPeriodSec: 5,
-    logLevel: 'info'
+    moversLimit: 200,           // лимит монет в топах
+    setupsMinNotional24h: 2e6,  // минимальный объем для "сетапов"
+    anomaliesZScore: 3,         // коэффициент для аномалий
+    wsReconnectMs: 4500,        // интервал переподключения WS
+    oiInterval: '5min',         // интервал по умолчанию
+    agentPeriodSec: 5,          // автообновление агента
+    logLevel: 'info'            // уровень логов
   }
 };
 
-// Удобный хелпер для REST: собирает полный URL с category=linear
+// === Хелпер для REST: добавляет category=linear ===
 export function buildApiUrl(endpoint, params = {}) {
-  const url = new URL((CONFIG.BYBIT.API_BASE || 'https://api.bybit.com') + endpoint);
-  const search = new URLSearchParams({ category: CONFIG.BYBIT.MARKET_CATEGORY, ...params });
+  const base = CONFIG.BYBIT.API_BASE || 'https://api.bybit.com';
+  const url = new URL(base + endpoint);
+  const search = new URLSearchParams({
+    category: CONFIG.BYBIT.MARKET_CATEGORY,
+    ...params
+  });
   url.search = search.toString();
   return url.toString();
 }
 
-// === Reactive App State ===
+// === Runtime State ===
 export const AppState = {
-  currentSymbol: 'BTCUSDT',   // всегда фьючерсный тикер, например BTCUSDT
+  currentSymbol: 'BTCUSDT', // всегда фьючерсный тикер
 
   favorites: new Set(),
   alerts: new Map(),
@@ -60,7 +64,7 @@ export const AppState = {
   ws: null,
   wsConnected: false,
 
-  realTime: new Map(),        // { SYMBOL -> { price, change24h, funding, oi, ... } }
+  realTime: new Map(), // { SYMBOL -> { price, change24h, funding, oi, ... } }
 
   lastSnapshots: {
     movers: [],
@@ -76,7 +80,7 @@ export const AppState = {
   }
 };
 
-// Логгер (включается CONFIG.UI.logLevel = 'debug')
+// === Логгер ===
 export function log(...args) {
   if (CONFIG.UI.logLevel === 'debug') {
     console.log('[ByAgent]', ...args);
