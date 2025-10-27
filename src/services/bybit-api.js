@@ -1,7 +1,6 @@
 // === Bybit API for Futures (Linear) ===
 
-import { CONFIG, AppState } from '../config/constants.js';
-
+import { CONFIG, AppState } from '../../config/constants.js';
 // === Load all tradable futures symbols ===
 export async function loadSymbols() {
   try {
