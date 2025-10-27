@@ -3,7 +3,6 @@ import { mountTV, normalizeSymbol } from './services/bybit-api.js';
 import { spawnTopMovers } from './components/top-movers.js';
 import { spawnSetups } from './components/setups.js';
 import { spawnAnomalies } from './components/anomalies.js';
-import { AppState } from '../config/constants.js';
 import { loadFavorites, setAlert, loadAlerts } from './utils/storage.js';
 import { CONFIG, AppState } from '../config/constants.js'; 
 import { by, loadSymbols, normalizeSymbol, mountTV } from './services/bybit-api.js';
