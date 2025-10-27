@@ -1,4 +1,4 @@
-import { fmt } from './formatters.js';
+import { fmt } from './formatters.js'; 
 
 // Function to handle the "Найти" (Find) button logic and "Создать алерт" in the Alerts modal
 export function setupAlertsModal(drawer) {
