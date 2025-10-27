@@ -4,7 +4,7 @@ import { mountTV, normalizeSymbol } from './services/bybit-api.js';
 import { spawnTopMovers } from './components/top-movers.js';
 import { spawnSetups } from './components/setups.js';
 import { spawnAnomalies } from './components/anomalies.js';
-import { CONFIG, AppState } from './config/constants.js';
+import { CONFIG, AppState } from '../config/constants.js';
 import { loadFavorites, setAlert, loadAlerts } from './utils/storage.js';
 import { spawnAgent, setActiveSeg } from './components/agent-analytics.js';
 import { spawnOI, refreshOI } from './components/open-interest.js';
